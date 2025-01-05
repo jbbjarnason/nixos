@@ -137,6 +137,9 @@
     vcpkg
     ltunify
     direnv
+    unzip
+    socat
+    zerotier-desktop-ui
   ];
   fonts = {
     packages = with pkgs; [
