@@ -2,7 +2,7 @@
 # your system. Help is available in the configuration.nix(5) man page, on
 # https://search.nixos.org/options and in the NixOS manual (`nixos-help`).
 
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, pkgsUnstable ? null, ... }:
 
 {
   imports =
@@ -19,6 +19,16 @@
   # Pick only one of the below networking options.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
   networking.networkmanager.enable = true;  # Easiest to use and most distros use this by default.
+  networking.networkmanager.wifi.backend = "iwd";
+  networking.networkmanager.wifi.powersave = false; # Prevent wifi being disconnected every now and then
+  networking.extraHosts =
+  ''
+    #192.168.8.187 tempservo.local
+    #10.11.12.229 tempservo.local
+    10.11.13.4 tempservo.local
+  '';
+  # Provide all firmware (including iwlwifi firmware)
+  hardware.enableAllFirmware = true;
 
   # Set your time zone.
   time.timeZone = "Atlantic/Reykjavik";
@@ -60,12 +70,24 @@
 
   # Enable touchpad support (enabled default in most desktopManager).
   services.libinput.enable = true;
+  services.teamviewer.enable = true;
   virtualisation.docker.enable = true;
+  #virtualisation.virtualbox.host.enable = true;
+  #virtualisation.virtualbox.host.enableExtensionPack = true;
+  users.extraGroups.vboxusers.members = [ "jonb" ];
+  programs.virt-manager.enable = true;
+  users.groups.libvirtd.members = ["jonb"];
+  virtualisation.libvirtd.enable = true;
+  virtualisation.spiceUSBRedirection.enable = true;
+
+  services.hardware.bolt.enable = true;
+
+  boot.kernelParams = [ "kvm.enable_virt_at_load=0" ];
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.jonb = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" "docker" ]; # Enable ‘sudo’ for the user.
+    extraGroups = [ "wheel" "networkmanager" "docker" "dialout" "wireshark" ]; # Enable ‘sudo’ for the user.
     shell = "${pkgs.fish}/bin/fish";
     packages = with pkgs; [
       tree
@@ -75,6 +97,7 @@
       waybar
       grim
       slurp
+      wf-recorder
       wl-clipboard
       networkmanagerapplet
       blueman
@@ -83,17 +106,13 @@
       # kdeconnect
       polkit_gnome
       alacritty
-      freerdp
       remmina
-      vscode
-      code-cursor
       bambu-studio
       bitwarden
       discord
       google-chrome
       # thunar
-      tigervnc
-      virtualbox
+      # tigervnc
       wireshark
       zed
       lapce
@@ -104,6 +123,21 @@
       jetbrains-toolbox
       d-spy
       iperf3
+      signal-desktop
+      vlc
+      python3
+      freerdp3
+      libreoffice-qt
+      hunspell
+      hunspellDicts.en_US
+      jetbrains.pycharm-community-bin
+      teamviewer
+      openfortivpn
+      realvnc-vnc-viewer
+      vscode
+      zenity
+    ] ++ lib.optionals (pkgsUnstable != null) [
+      pkgsUnstable.code-cursor
     ];
   };
 
@@ -139,8 +173,26 @@
     direnv
     unzip
     socat
-    zerotier-desktop-ui
+    lsof
+    usbutils
+    android-tools
+    gnome-terminal
+    ntfs3g
+    nodejs
+    jq
+    yarn
+    inkscape
+    lld
+    jdk
+    qemu
+    parted
+    debootstrap
+    ethtool
+    tcpdump
+    lldb
+    eww
   ];
+
   fonts = {
     packages = with pkgs; [
       noto-fonts
@@ -171,18 +223,53 @@
   services.openssh.enable = true;
 
   # Open ports in the firewall.
-  networking.firewall.allowedTCPPorts = [ 22 ];
-  # networking.firewall.allowedUDPPorts = [ ... ];
+  networking.firewall.allowedTCPPorts = [ 22 5900 1040 5201 ];
+  networking.firewall.allowedUDPPorts = [ 9993 51820 ];
   # Or disable the firewall altogether.
   # networking.firewall.enable = false;
 
-  services.zerotierone.enable = true;
+  #networking.wireguard.enable = true;
+  #networking.wireguard.interfaces = {
+  #  vorduberg20 = {
+  #    ips = [ "10.11.13.5/24" ];
+  #    listenPort = 51820;
+  #    privateKeyFile = "/wg-keys/private";
+  #    peers = [
+  #      {
+  #        publicKey = "Q8J60aRDV0aC6i5KBQU08x660GxvT225jUYhJyK5GWY=";
+  #        allowedIPs = [ "0.0.0.0/0" ];
+  #        endpoint = "153.92.133.244:51820";
+  #        persistentKeepalive = 25;
+  #      }
+  #    ];
+  #  };
+  #};
+
+  services.zerotierone = {
+    enable = true;
+    #localConf = {
+    #  settings = {
+    #    primaryPort = 9993;
+    #    portMappingEnabled = true;
+    #    allowTcpFallbackRelay = true;
+    #    #forceTcpRelay = true;
+    #    tcpFallbackRelay = "213.181.115.232/443";
+    #  };
+    #};
+  };
+  networking.firewall.trustedInterfaces = [ "ztm5tynveb" ];
+  services.tailscale.enable = false;
   services.gnome.gnome-keyring.enable = true;
   security.polkit.enable = true;
 
   programs.sway = {
     enable = true;
     wrapperFeatures.gtk = true;
+  };
+  programs.wireshark = {
+    enable = true;
+    # dumpcap = true;
+    # usbmon.enable = true;
   };
 
   nix.settings = {
